@@ -3,13 +3,14 @@ import { X, Clock, MapPin, Type, AlignLeft, Tag } from 'lucide-react';
 import { ItineraryItem, ActivityType } from '../types';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 
-interface AddActivityModalProps {
+interface EditActivityModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAdd: (item: ItineraryItem) => void;
+    onUpdate: (updates: Partial<ItineraryItem>) => void;
+    activity: ItineraryItem | null;
 }
 
-export const AddActivityModal: React.FC<AddActivityModalProps> = ({ isOpen, onClose, onAdd }) => {
+export const EditActivityModal: React.FC<EditActivityModalProps> = ({ isOpen, onClose, onUpdate, activity }) => {
     const placesLibrary = useMapsLibrary('places');
     const [title, setTitle] = useState('');
     const [time, setTime] = useState('12:00');
@@ -20,6 +21,18 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ isOpen, onCl
 
     const inputRef = useRef<HTMLInputElement>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+
+    // Initialize form with activity data
+    useEffect(() => {
+        if (activity) {
+            setTitle(activity.title);
+            setTime(activity.time);
+            setLocationName(activity.locationName);
+            setMemo(activity.memo || '');
+            setActivityType(activity.activityType);
+            setPosition(activity.position);
+        }
+    }, [activity]);
 
     useEffect(() => {
         if (!placesLibrary || !inputRef.current) return;
@@ -48,39 +61,30 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ isOpen, onCl
         };
     }, [placesLibrary, isOpen]);
 
-    if (!isOpen) return null;
+    if (!isOpen || !activity) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!position) return;
 
-        const newItem: ItineraryItem = {
-            id: crypto.randomUUID(),
+        const updates: Partial<ItineraryItem> = {
             time,
             title,
             locationName,
             memo,
             activityType,
-            position,
-            photos: []
+            position
         };
 
-        onAdd(newItem);
+        onUpdate(updates);
         onClose();
-        // Reset fields
-        setTitle('');
-        setTime('12:00');
-        setLocationName('');
-        setMemo('');
-        setActivityType('sightseeing');
-        setPosition(null);
     };
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-slate-900">Add New Activity</h2>
+                    <h2 className="text-xl font-bold text-slate-900">Edit Activity</h2>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
@@ -176,7 +180,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ isOpen, onCl
                                 : 'bg-slate-100 text-slate-400 border border-slate-200 shadow-none cursor-not-allowed'
                                 }`}
                         >
-                            Add to Itinerary
+                            Update Activity
                         </button>
                     </div>
                 </form>

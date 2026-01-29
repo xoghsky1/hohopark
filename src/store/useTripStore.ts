@@ -10,6 +10,8 @@ interface TripState {
     updateItineraryItem: (tripId: string, itemId: string, updates: Partial<ItineraryItem>) => void;
     addPhotoToItem: (tripId: string, itemId: string, photoUrl: string) => void;
     addActivity: (tripId: string, dayDate: string, item: ItineraryItem) => void;
+    deleteActivity: (tripId: string, itemId: string) => void;
+    updateActivity: (tripId: string, itemId: string, updates: Partial<ItineraryItem>) => void;
 }
 
 export const useTripStore = create<TripState>()(
@@ -62,6 +64,36 @@ export const useTripStore = create<TripState>()(
                                         item.id === itemId
                                             ? { ...item, photos: [...item.photos, photoUrl] }
                                             : item
+                                    ),
+                                })),
+                            }
+                            : trip
+                    ),
+                })),
+            deleteActivity: (tripId: string, itemId: string) =>
+                set((state: TripState) => ({
+                    trips: state.trips.map((trip: Trip) =>
+                        trip.id === tripId
+                            ? {
+                                ...trip,
+                                itinerary: trip.itinerary.map((day) => ({
+                                    ...day,
+                                    items: day.items.filter((item) => item.id !== itemId),
+                                })),
+                            }
+                            : trip
+                    ),
+                })),
+            updateActivity: (tripId: string, itemId: string, updates: Partial<ItineraryItem>) =>
+                set((state: TripState) => ({
+                    trips: state.trips.map((trip: Trip) =>
+                        trip.id === tripId
+                            ? {
+                                ...trip,
+                                itinerary: trip.itinerary.map((day) => ({
+                                    ...day,
+                                    items: day.items.map((item: ItineraryItem) =>
+                                        item.id === itemId ? { ...item, ...updates } : item
                                     ),
                                 })),
                             }

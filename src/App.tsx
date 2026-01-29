@@ -1,18 +1,22 @@
 import React, { useRef, useState, useMemo } from 'react';
 import { Layout } from './components/Layout';
 import { useTripStore } from './store/useTripStore';
-import { Plus, MapPin, Calendar, Camera } from 'lucide-react';
+import { Plus, MapPin, Calendar, Camera, Trash2, Edit2, Plane, Train, Bus, UtensilsCrossed, Hotel, Eye } from 'lucide-react';
 import { Map } from './components/Map';
 import { CreateTripModal } from './components/CreateTripModal';
 import { AddActivityModal } from './components/AddActivityModal';
+import { EditActivityModal } from './components/EditActivityModal';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import { ActivityType, ItineraryItem } from './types';
 
 function App() {
-    const { trips, addTrip, activeTripId, setActiveTrip, addPhotoToItem, addActivity } = useTripStore();
+    const { trips, addTrip, activeTripId, setActiveTrip, addPhotoToItem, addActivity, deleteActivity, updateActivity } = useTripStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedItemRef = useRef<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isAddActivityModalOpen, setIsAddActivityModalOpen] = useState(false);
+    const [isEditActivityModalOpen, setIsEditActivityModalOpen] = useState(false);
+    const [editingActivity, setEditingActivity] = useState<ItineraryItem | null>(null);
     const [activeDayIndex, setActiveDayIndex] = useState(0);
 
     const activeTrip = trips.find(t => t.id === activeTripId);
@@ -40,11 +44,77 @@ function App() {
         return [...activeTrip.itinerary[activeDayIndex].items].sort((a, b) => a.time.localeCompare(b.time));
     }, [activeTrip, activeDayIndex]);
 
-    const mapMarkers = sortedItems.map((item) => ({
+    const mapMarkers = sortedItems.map((item, index) => ({
         id: item.id,
         position: item.position,
-        title: item.title
+        title: item.title,
+        time: item.time,
+        index: index + 1
     }));
+
+    const getActivityIcon = (type: ActivityType) => {
+        const iconClass = "w-4 h-4";
+        switch (type) {
+            case 'flight': return <Plane className={iconClass} />;
+            case 'train': return <Train className={iconClass} />;
+            case 'bus': return <Bus className={iconClass} />;
+            case 'dining': return <UtensilsCrossed className={iconClass} />;
+            case 'accommodation': return <Hotel className={iconClass} />;
+            case 'sightseeing': return <Eye className={iconClass} />;
+            default: return <MapPin className={iconClass} />;
+        }
+    };
+
+    const getActivityTypeLabel = (type: ActivityType) => {
+        const labels = {
+            'flight': 'Flight',
+            'train': 'Train',
+            'bus': 'Bus',
+            'dining': 'Dining',
+            'accommodation': 'Accommodation',
+            'sightseeing': 'Sightseeing',
+            'other': 'Other'
+        };
+        return labels[type];
+    };
+
+    const handleDeleteActivity = (itemId: string) => {
+        if (activeTripId) {
+            deleteActivity(activeTripId, itemId);
+        }
+    };
+
+    const handleEditActivity = (item: ItineraryItem) => {
+        setEditingActivity(item);
+        setIsEditActivityModalOpen(true);
+    };
+
+    const handleUpdateActivity = (updates: Partial<ItineraryItem>) => {
+        if (activeTripId && editingActivity) {
+            updateActivity(activeTripId, editingActivity.id, updates);
+            setEditingActivity(null);
+        }
+    };
+
+    const handleAddActivityFromMap = (dayIndex: number, position: { lat: number; lng: number }, locationName: string) => {
+        if (!activeTripId || !activeTrip) return;
+
+        const dayDate = activeTrip.itinerary[dayIndex]?.date;
+        if (!dayDate) return;
+
+        const newActivity: ItineraryItem = {
+            id: crypto.randomUUID(),
+            time: '12:00',
+            title: locationName,
+            locationName,
+            position,
+            activityType: 'sightseeing',
+            memo: '',
+            photos: []
+        };
+
+        addActivity(activeTripId, dayDate, newActivity);
+    };
 
     const [activeTab, setActiveTab] = React.useState<'list' | 'map'>('list');
 
@@ -91,6 +161,13 @@ function App() {
                     isOpen={isAddActivityModalOpen}
                     onClose={() => setIsAddActivityModalOpen(false)}
                     onAdd={handleAddActivity}
+                />
+
+                <EditActivityModal
+                    isOpen={isEditActivityModalOpen}
+                    onClose={() => setIsEditActivityModalOpen(false)}
+                    onUpdate={handleUpdateActivity}
+                    activity={editingActivity}
                 />
 
                 {!activeTrip ? (
@@ -207,27 +284,51 @@ function App() {
                                         </div>
                                     ) : (
                                         <div className="pb-4">
-                                            {sortedItems.map((item) => (
+                                            {sortedItems.map((item, index) => (
                                                 <div key={item.id} className="relative pl-6 md:pl-8 border-l-2 border-slate-100 last:border-0 pb-6 md:pb-8 last:pb-0">
-                                                    <div className="absolute left-[-9px] top-0 w-4 h-4 rounded-full bg-primary-500 border-4 border-white shadow-sm" />
+                                                    <div className="absolute left-[-13px] top-0 w-6 h-6 rounded-full bg-primary-600 text-white border-4 border-white shadow-sm flex items-center justify-center text-xs font-bold">
+                                                        {index + 1}
+                                                    </div>
 
                                                     <div className="bg-slate-50 rounded-2xl p-4 md:p-5 hover:bg-slate-100/50 transition border border-transparent hover:border-slate-200 group">
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <span className="text-xs md:text-sm font-black text-primary-600 tracking-tight">{item.time}</span>
-                                                            <button
-                                                                onClick={() => handleUploadClick(item.id)}
-                                                                className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-slate-500 hover:text-primary-600 bg-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-xl border border-slate-100 shadow-sm transition active:scale-95 group-hover:border-primary-100"
-                                                            >
-                                                                <Camera className="w-3.5 h-3.5" />
-                                                                Upload Photos
-                                                            </button>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs md:text-sm font-black text-primary-600 tracking-tight">{item.time}</span>
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[10px] md:text-xs font-semibold text-slate-600">
+                                                                    {getActivityIcon(item.activityType)}
+                                                                    {getActivityTypeLabel(item.activityType)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => handleUploadClick(item.id)}
+                                                                    className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-slate-500 hover:text-primary-600 bg-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-xl border border-slate-100 shadow-sm transition active:scale-95 group-hover:border-primary-100"
+                                                                >
+                                                                    <Camera className="w-3.5 h-3.5" />
+                                                                    <span className="hidden md:inline">Upload</span>
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleEditActivity(item)}
+                                                                    className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-slate-500 hover:text-blue-600 bg-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-xl border border-slate-100 shadow-sm transition active:scale-95 group-hover:border-blue-100"
+                                                                >
+                                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteActivity(item.id)}
+                                                                    className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-slate-500 hover:text-red-600 bg-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-xl border border-slate-100 shadow-sm transition active:scale-95 group-hover:border-red-100"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <h3 className="text-base md:text-lg font-bold text-slate-900">{item.title}</h3>
                                                         <div className="flex items-center gap-1 text-slate-500 text-xs md:text-sm mb-3">
                                                             <MapPin className="w-3.5 h-3.5 text-primary-400" />
                                                             <span>{item.locationName}</span>
                                                         </div>
-                                                        <p className="text-slate-600 text-xs md:text-sm italic mb-4 leading-relaxed">{item.memo}</p>
+                                                        {item.memo && (
+                                                            <p className="text-slate-600 text-xs md:text-sm italic mb-4 leading-relaxed">{item.memo}</p>
+                                                        )}
 
                                                         {/* Photo Grid */}
                                                         {item.photos.length > 0 && (
@@ -262,6 +363,11 @@ function App() {
                                         center={sortedItems[0]?.position || { lat: 48.8566, lng: 2.3522 }}
                                         markers={mapMarkers}
                                         bounds={activeTrip.bounds}
+                                        days={activeTrip.itinerary.map((day, index) => ({
+                                            date: day.date,
+                                            dayNumber: index + 1
+                                        }))}
+                                        onAddActivity={handleAddActivityFromMap}
                                     />
                                 </div>
                             </div>

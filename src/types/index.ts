@@ -18,12 +18,15 @@ export interface ItineraryDay {
     items: ItineraryItem[];
 }
 
+export type ActivityType = 'sightseeing' | 'dining' | 'accommodation' | 'flight' | 'train' | 'bus' | 'other';
+
 export interface ItineraryItem {
     id: string;
     time: string;
     title: string;
     locationName: string;
     memo: string;
+    activityType: ActivityType;
     position: {
         lat: number;
         lng: number;
