@@ -1,22 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Globe, Calendar, MapPin } from 'lucide-react';
-import { Trip, ItineraryDay } from '../types';
+import { Trip, ItineraryDay, GeoBounds } from '../types';
 import { addDays, format, eachDayOfInterval, parseISO } from 'date-fns';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 
+/**
+ * Default number of days for a new trip.
+ */
+const DEFAULT_TRIP_DURATION_DAYS = 7;
+
+/**
+ * Date format string for trip dates.
+ */
+const DATE_FORMAT = 'yyyy-MM-dd';
+
+/**
+ * Props for the CreateTripModal component.
+ */
 interface CreateTripModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCreate: (trip: Trip) => void;
 }
 
+/**
+ * Modal component for creating a new trip.
+ */
 export const CreateTripModal: React.FC<CreateTripModalProps> = ({ isOpen, onClose, onCreate }) => {
     const placesLibrary = useMapsLibrary('places');
     const [title, setTitle] = useState('');
     const [destination, setDestination] = useState('');
-    const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-    const [endDate, setEndDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
-    const [bounds, setBounds] = useState<Trip['bounds'] | undefined>(undefined);
+    const [startDate, setStartDate] = useState(format(new Date(), DATE_FORMAT));
+    const [endDate, setEndDate] = useState(format(addDays(new Date(), DEFAULT_TRIP_DURATION_DAYS), DATE_FORMAT));
+    const [bounds, setBounds] = useState<GeoBounds | undefined>(undefined);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -62,8 +78,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({ isOpen, onClos
         });
 
         const itinerary: ItineraryDay[] = days.map(day => ({
-            date: format(day, 'yyyy-MM-dd'),
-            items: []
+            date: format(day, DATE_FORMAT),
+            items: [],
         }));
 
         const newTrip: Trip = {

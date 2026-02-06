@@ -7,9 +7,40 @@ import { CreateTripModal } from './components/CreateTripModal';
 import { AddActivityModal } from './components/AddActivityModal';
 import { EditActivityModal } from './components/EditActivityModal';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import { ActivityType, ItineraryItem } from './types';
+import { ActivityType, ItineraryItem, Trip, GeoPosition } from './types';
 
-function App() {
+/**
+ * Default map center (Paris coordinates).
+ */
+const DEFAULT_MAP_CENTER: GeoPosition = { lat: 48.8566, lng: 2.3522 };
+
+/**
+ * Default time for new activities.
+ */
+const DEFAULT_ACTIVITY_TIME = '12:00';
+
+/**
+ * Human-readable labels for activity types.
+ */
+const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
+    flight: 'Flight',
+    train: 'Train',
+    bus: 'Bus',
+    dining: 'Dining',
+    accommodation: 'Accommodation',
+    sightseeing: 'Sightseeing',
+    other: 'Other',
+};
+
+/**
+ * CSS class for activity icons.
+ */
+const ACTIVITY_ICON_CLASS = 'w-4 h-4';
+
+/**
+ * Main application component for the HOMI travel itinerary app.
+ */
+export function App() {
     const { trips, addTrip, activeTripId, setActiveTrip, addPhotoToItem, addActivity, deleteActivity, updateActivity } = useTripStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedItemRef = useRef<string | null>(null);
@@ -27,13 +58,13 @@ function App() {
         return `${diff} Days Left`;
     };
 
-    const handleCreateTrip = (newTrip: any) => {
+    const handleCreateTrip = (newTrip: Trip) => {
         addTrip(newTrip);
         setActiveTrip(newTrip.id);
         setActiveDayIndex(0);
     };
 
-    const handleAddActivity = (item: any) => {
+    const handleAddActivity = (item: ItineraryItem) => {
         if (activeTrip && activeTrip.itinerary[activeDayIndex]) {
             addActivity(activeTrip.id, activeTrip.itinerary[activeDayIndex].date, item);
         }
@@ -52,30 +83,26 @@ function App() {
         index: index + 1
     }));
 
+    /**
+     * Returns the appropriate icon component for a given activity type.
+     */
     const getActivityIcon = (type: ActivityType) => {
-        const iconClass = "w-4 h-4";
         switch (type) {
-            case 'flight': return <Plane className={iconClass} />;
-            case 'train': return <Train className={iconClass} />;
-            case 'bus': return <Bus className={iconClass} />;
-            case 'dining': return <UtensilsCrossed className={iconClass} />;
-            case 'accommodation': return <Hotel className={iconClass} />;
-            case 'sightseeing': return <Eye className={iconClass} />;
-            default: return <MapPin className={iconClass} />;
+            case 'flight': return <Plane className={ACTIVITY_ICON_CLASS} />;
+            case 'train': return <Train className={ACTIVITY_ICON_CLASS} />;
+            case 'bus': return <Bus className={ACTIVITY_ICON_CLASS} />;
+            case 'dining': return <UtensilsCrossed className={ACTIVITY_ICON_CLASS} />;
+            case 'accommodation': return <Hotel className={ACTIVITY_ICON_CLASS} />;
+            case 'sightseeing': return <Eye className={ACTIVITY_ICON_CLASS} />;
+            default: return <MapPin className={ACTIVITY_ICON_CLASS} />;
         }
     };
 
+    /**
+     * Returns the human-readable label for a given activity type.
+     */
     const getActivityTypeLabel = (type: ActivityType) => {
-        const labels = {
-            'flight': 'Flight',
-            'train': 'Train',
-            'bus': 'Bus',
-            'dining': 'Dining',
-            'accommodation': 'Accommodation',
-            'sightseeing': 'Sightseeing',
-            'other': 'Other'
-        };
-        return labels[type];
+        return ACTIVITY_TYPE_LABELS[type];
     };
 
     const handleDeleteActivity = (itemId: string) => {
@@ -96,7 +123,10 @@ function App() {
         }
     };
 
-    const handleAddActivityFromMap = (dayIndex: number, position: { lat: number; lng: number }, locationName: string) => {
+    /**
+     * Handles adding a new activity from a map click.
+     */
+    const handleAddActivityFromMap = (dayIndex: number, position: GeoPosition, locationName: string) => {
         if (!activeTripId || !activeTrip) return;
 
         const dayDate = activeTrip.itinerary[dayIndex]?.date;
@@ -104,13 +134,13 @@ function App() {
 
         const newActivity: ItineraryItem = {
             id: crypto.randomUUID(),
-            time: '12:00',
+            time: DEFAULT_ACTIVITY_TIME,
             title: locationName,
             locationName,
             position,
             activityType: 'sightseeing',
             memo: '',
-            photos: []
+            photos: [],
         };
 
         addActivity(activeTripId, dayDate, newActivity);
@@ -360,12 +390,12 @@ function App() {
                             <div className={`${activeTab === 'map' ? 'block' : 'hidden'} lg:block bg-white rounded-[2.5rem] overflow-hidden relative shadow-sm border border-slate-200 p-2.5`}>
                                 <div className="w-full h-full rounded-[2rem] overflow-hidden">
                                     <Map
-                                        center={sortedItems[0]?.position || { lat: 48.8566, lng: 2.3522 }}
+                                        center={sortedItems[0]?.position || DEFAULT_MAP_CENTER}
                                         markers={mapMarkers}
                                         bounds={activeTrip.bounds}
                                         days={activeTrip.itinerary.map((day, index) => ({
                                             date: day.date,
-                                            dayNumber: index + 1
+                                            dayNumber: index + 1,
                                         }))}
                                         onAddActivity={handleAddActivityFromMap}
                                     />
@@ -379,4 +409,4 @@ function App() {
     );
 }
 
-export default App;
+
